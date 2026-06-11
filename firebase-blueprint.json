@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile and Settings",
+      "description": "User specific data, bio-metric selections, profile settings, and system values",
+      "type": "object",
+      "properties": {
+        "weeklyFocus": { "type": "string" },
+        "sleepScore": { "type": "integer" },
+        "userXP": { "type": "integer" },
+        "userLevel": { "type": "integer" },
+        "timezone": { "type": "string" },
+        "onboardingGoal": { "type": "string" },
+        "onboardingSleepHours": { "type": "number" },
+        "userName": { "type": "string" },
+        "userTitle": { "type": "string" },
+        "userBio": { "type": "string" },
+        "focusTarget": { "type": "number" },
+        "sleepWindowTarget": { "type": "string" },
+        "soundscapeTrack": { "type": "string" },
+        "activeSoundscapeTimer": { "type": "string" },
+        "biometricsAppleConnected": { "type": "boolean" },
+        "biometricsOuraConnected": { "type": "boolean" },
+        "strictBlockMode": { "type": "boolean" },
+        "autoFocusDetection": { "type": "boolean" },
+        "soundscapeVolume": { "type": "number" },
+        "coachSensitivity": { "type": "number" },
+        "recoveryAlerts": { "type": "boolean" },
+        "habitReminders": { "type": "boolean" },
+        "weeklyBriefings": { "type": "boolean" },
+        "appTheme": { "type": "string", "enum": ["ambient-green", "deep-indigo", "cyber-orange"] },
+        "syncToSystemTheme": { "type": "boolean" }
+      },
+      "required": [
+        "userName",
+        "userXP",
+        "userLevel"
+      ]
+    },
+    "Habit": {
+      "title": "Habit Definition",
+      "description": "User habit card entries and current streaks",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string", "enum": ["work", "wellness", "mind"] },
+        "isActive": { "type": "boolean" },
+        "frequency": { "type": "string" },
+        "streakCount": { "type": "integer" },
+        "lastDone": { "type": "string" },
+        "step1": { "type": "string" },
+        "step2": { "type": "string" },
+        "step3": { "type": "string" }
+      },
+      "required": ["title", "category", "streakCount"]
+    },
+    "MetricLog": {
+      "title": "Wellness Metric Log",
+      "description": "Daily logged physical and psychological metrics",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "sleepScore": { "type": "integer" },
+        "sleepHours": { "type": "number" },
+        "waterIntake": { "type": "number" },
+        "mindState": { "type": "string", "enum": ["Focus", "Calm", "Nervous", "Tired"] },
+        "gratitudeText": { "type": "string" }
+      },
+      "required": ["date", "sleepScore", "sleepHours", "waterIntake", "mindState"]
+    },
+    "FocusSession": {
+      "title": "Focus Session Record",
+      "description": "Historic focus data for cognitive flow tracking",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "durationMinutes": { "type": "integer" },
+        "soundscape": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "activityName": { "type": "string" }
+      },
+      "required": ["date", "durationMinutes", "completed", "activityName"]
+    },
+    "Milestone": {
+      "title": "Gamified Milestone Status",
+      "description": "Represents the unlocking of system achievements",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "unlockedAt": { "type": "string" },
+        "targetCount": { "type": "integer" },
+        "currentCount": { "type": "integer" }
+      },
+      "required": ["name", "targetCount", "currentCount"]
+    },
+    "AIChatMessage": {
+      "title": "AI Coach Message",
+      "description": "Messages sent or received in the AI companion chat",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["system", "user", "model"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["role", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Top-level collection for user documents containing settings, profiles, and scores"
+    },
+    "users/{userId}/habits/{habitId}": {
+      "schema": "Habit",
+      "description": "Habit structures registered or stacked by the user"
+    },
+    "users/{userId}/metrics/{metricId}": {
+      "schema": "MetricLog",
+      "description": "Daily wellness logs of biomarkers and state"
+    },
+    "users/{userId}/focusHistory/{focusId}": {
+      "schema": "FocusSession",
+      "description": "Prefrontal focus sessions logged by the user"
+    },
+    "users/{userId}/milestones/{milestoneId}": {
+      "schema": "Milestone",
+      "description": "Achievements tracked periodically"
+    },
+    "users/{userId}/chats/{messageId}": {
+      "schema": "AIChatMessage",
+      "description": "Incremental historical chats with HabitFlow AI"
+    }
+  }
+}

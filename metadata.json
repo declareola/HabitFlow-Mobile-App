@@ -1,0 +1,8 @@
+{
+  "name": "Remix: HabitFlow AI Mobile App",
+  "description": "An interactive, beautiful ambient wellness and focus tracker featuring multi-screen experiences.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,205 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global safety net catch-all: deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY PRIMITIVES ---
+
+    // ID Poisoning Guard
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Authentication Checks
+    // Mandatory verification check
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Helper shortcuts
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+
+    // --- ENTITY VALIDATION BLUEPRINTS (ANTI-UPDATE-GAP) ---
+
+    function isValidUser(data) {
+      return data.userName is string 
+        && data.userName.size() > 0 
+        && data.userName.size() <= 100
+        && (!('userTitle' in data) || (data.userTitle is string && data.userTitle.size() <= 100))
+        && (!('userBio' in data) || (data.userBio is string && data.userBio.size() <= 1000))
+        && (!('weeklyFocus' in data) || (data.weeklyFocus is string && data.weeklyFocus.size() <= 500))
+        && (!('sleepScore' in data) || (data.sleepScore is int && data.sleepScore >= 0 && data.sleepScore <= 100))
+        && (!('userXP' in data) || (data.userXP is int && data.userXP >= 0))
+        && (!('userLevel' in data) || (data.userLevel is int && data.userLevel >= 1))
+        && (!('timezone' in data) || (data.timezone is string && data.timezone.size() <= 100))
+        && (!('onboardingGoal' in data) || (data.onboardingGoal == null || (data.onboardingGoal is string && data.onboardingGoal.size() <= 200)))
+        && (!('onboardingSleepHours' in data) || (data.onboardingSleepHours is number && data.onboardingSleepHours >= 0.0 && data.onboardingSleepHours <= 24.0))
+        && (!('focusTarget' in data) || (data.focusTarget is number && data.focusTarget >= 0.0 && data.focusTarget <= 24.0))
+        && (!('sleepWindowTarget' in data) || (data.sleepWindowTarget is string && data.sleepWindowTarget.size() <= 100))
+        && (!('soundscapeTrack' in data) || (data.soundscapeTrack is string && data.soundscapeTrack.size() <= 200))
+        && (!('activeSoundscapeTimer' in data) || (data.activeSoundscapeTimer is string && data.activeSoundscapeTimer.size() <= 200))
+        && (!('biometricsAppleConnected' in data) || (data.biometricsAppleConnected is bool))
+        && (!('biometricsOuraConnected' in data) || (data.biometricsOuraConnected is bool))
+        && (!('strictBlockMode' in data) || (data.strictBlockMode is bool))
+        && (!('autoFocusDetection' in data) || (data.autoFocusDetection is bool))
+        && (!('soundscapeVolume' in data) || (data.soundscapeVolume is number && data.soundscapeVolume >= 0 && data.soundscapeVolume <= 100))
+        && (!('coachSensitivity' in data) || (data.coachSensitivity is number && data.coachSensitivity >= 0 && data.coachSensitivity <= 100))
+        && (!('recoveryAlerts' in data) || (data.recoveryAlerts is bool))
+        && (!('habitReminders' in data) || (data.habitReminders is bool))
+        && (!('weeklyBriefings' in data) || (data.weeklyBriefings is bool))
+        && (!('appTheme' in data) || (data.appTheme is string && (data.appTheme == 'ambient-green' || data.appTheme == 'deep-indigo' || data.appTheme == 'cyber-orange')))
+        && (!('syncToSystemTheme' in data) || (data.syncToSystemTheme is bool));
+    }
+
+    function isValidHabit(data) {
+      return data.title is string 
+        && data.title.size() > 0 
+        && data.title.size() <= 200
+        && data.category is string 
+        && (data.category == 'work' || data.category == 'wellness' || data.category == 'mind')
+        && data.streakCount is int 
+        && data.streakCount >= 0
+        && data.isActive is bool
+        && data.frequency is string
+        && data.frequency.size() <= 50
+        && (!('lastDone' in data) || (data.lastDone == null || (data.lastDone is string && data.lastDone.size() <= 50)))
+        && data.step1 is string && data.step1.size() <= 500
+        && data.step2 is string && data.step2.size() <= 500
+        && data.step3 is string && data.step3.size() <= 500;
+    }
+
+    function isValidMetricLog(data) {
+      return data.date is string 
+        && data.date.size() <= 50
+        && data.sleepScore is int 
+        && data.sleepScore >= 0 
+        && data.sleepScore <= 100
+        && data.sleepHours is number 
+        && data.sleepHours >= 0.0 
+        && data.sleepHours <= 24.0
+        && data.waterIntake is number 
+        && data.waterIntake >= 0.0 
+        && data.waterIntake <= 25.0
+        && data.mindState is string 
+        && (data.mindState == 'Focus' || data.mindState == 'Calm' || data.mindState == 'Nervous' || data.mindState == 'Tired')
+        && (!('gratitudeText' in data) || (data.gratitudeText is string && data.gratitudeText.size() <= 2000));
+    }
+
+    function isValidFocusSession(data) {
+      return data.date is string 
+        && data.date.size() <= 50
+        && data.durationMinutes is int 
+        && data.durationMinutes >= 0 
+        && data.durationMinutes <= 1440
+        && data.soundscape is string 
+        && data.soundscape.size() <= 200
+        && data.completed is bool
+        && data.activityName is string 
+        && data.activityName.size() <= 200;
+    }
+
+    function isValidMilestone(data) {
+      return data.name is string 
+        && data.name.size() > 0 
+        && data.name.size() <= 200
+        && data.description is string 
+        && data.description.size() <= 1000
+        && data.icon is string 
+        && data.icon.size() <= 100
+        && (!('unlockedAt' in data) || (data.unlockedAt == null || (data.unlockedAt is string && data.unlockedAt.size() <= 50)))
+        && data.targetCount is int 
+        && data.targetCount >= 0
+        && data.currentCount is int 
+        && data.currentCount >= 0;
+    }
+
+    function isValidAIChatMessage(data) {
+      return data.role is string 
+        && (data.role == 'system' || data.role == 'user' || data.role == 'model')
+        && data.content is string 
+        && data.content.size() <= 10000
+        && data.timestamp is string 
+        && data.timestamp.size() <= 100;
+    }
+
+
+    // --- COLLECTIONS & ACCESS RULES ---
+
+    // Users collection
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId); // explicitly boundary checking
+
+      // Exactly require standard fields during creation
+      allow create: if isOwner(userId)
+        && isValidUser(incoming())
+        && incoming().keys().hasAll(['userName', 'userXP', 'userLevel']);
+
+      allow update: if isOwner(userId)
+        && isValidUser(incoming());
+
+      allow delete: if isOwner(userId);
+
+      // Subcollection: habits
+      match /habits/{habitId} {
+        allow get: if isOwner(userId) && isValidId(habitId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(habitId) && isValidHabit(incoming());
+        allow update: if isOwner(userId) && isValidId(habitId) && isValidHabit(incoming());
+        allow delete: if isOwner(userId) && isValidId(habitId);
+      }
+
+      // Subcollection: metrics
+      match /metrics/{metricId} {
+        allow get: if isOwner(userId) && isValidId(metricId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(metricId) && isValidMetricLog(incoming());
+        allow update: if isOwner(userId) && isValidId(metricId) && isValidMetricLog(incoming());
+        allow delete: if isOwner(userId) && isValidId(metricId);
+      }
+
+      // Subcollection: focusHistory
+      match /focusHistory/{focusId} {
+        allow get: if isOwner(userId) && isValidId(focusId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(focusId) && isValidFocusSession(incoming());
+        allow update: if isOwner(userId) && isValidId(focusId) && isValidFocusSession(incoming());
+        allow delete: if isOwner(userId) && isValidId(focusId);
+      }
+
+      // Subcollection: milestones
+      match /milestones/{milestoneId} {
+        allow get: if isOwner(userId) && isValidId(milestoneId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(milestoneId) && isValidMilestone(incoming());
+        allow update: if isOwner(userId) && isValidId(milestoneId) && isValidMilestone(incoming());
+        allow delete: if isOwner(userId) && isValidId(milestoneId);
+      }
+
+      // Subcollection: chats (AIChatMessage)
+      match /chats/{messageId} {
+        allow get: if isOwner(userId) && isValidId(messageId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(messageId) && isValidAIChatMessage(incoming());
+        allow update: if isOwner(userId) && isValidId(messageId) && isValidAIChatMessage(incoming());
+        allow delete: if isOwner(userId) && isValidId(messageId);
+      }
+    }
+
+  }
+}
